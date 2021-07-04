@@ -3,8 +3,8 @@ import matplotlib.pyplot as plt
 from matplotlib.animation import FuncAnimation
 #--------------------------------------
 fig        = plt.figure()
-fs         = 20
-N          = 40
+fs         = 10
+N          = 20
 #--------------------------------------
 circleAxe  = fig.add_subplot(2,2,1)
 circleLn,massLn  = plt.plot([],[],'r-',[],[],'bo')
@@ -16,7 +16,7 @@ circleLn.set_label(circleFrec[0])
 circleLg   = circleAxe.legend()
 circleData = []
 mass       = 0
-frecIter   = -1
+frecIter   = -1#N//2
 def circle(f,n):
     return np.exp(-1j*2*np.pi*f*n*1/fs)
 #--------------------------------------
@@ -45,6 +45,7 @@ promAxe.set_xlim(-fs/2,fs/2)
 promAxe.set_ylim(-1,1)
 promData=np.zeros(N,dtype=complex)
 #--------------------------------------
+
 tData=np.arange(0,N/fs,1/fs)
 
 def init():
@@ -54,11 +55,11 @@ def init():
     frecIter+=1
     if frecIter >= (N-1):
         ani.repeat=False
-    return circleLn,circleLg,signalLn,massLn,promRLn,promILn
+    return circleLn,circleLg,signalLn,massLn,promRLn,promILn,promMagLn,promPhaseLn,
+
 
 def update(n):
     global circleData,signalData,promData,frecIter,circleFrec,circleLg
-    print(frecIter)
     circleData.append(circle(circleFrec[frecIter],n)*signal(signalFrec,n))
     mass=np.average(circleData)
     massLn.set_data(np.real(mass),
@@ -70,12 +71,13 @@ def update(n):
     promData[frecIter]=mass
     promRLn.set_data(circleFrec[:frecIter+1],np.real(promData[:frecIter+1]))
     promILn.set_data(circleFrec[:frecIter+1],np.imag(promData[:frecIter+1]))
-    #promMagLn.set_data(circleFrec[:frecIter+1],np.abs(promData[:frecIter+1])**2)
+    promMagLn.set_data(circleFrec[:frecIter+1],np.abs(promData[:frecIter+1])**2)
     #promPhaseLn.set_data(circleFrec[:frecIter+1],np.angle(promData[:frecIter+1])/np.pi)
     circleLn.set_label(circleFrec[frecIter])
     circleLg=circleAxe.legend()
+
     return circleLn,circleLg,signalLn,massLn,promRLn,promILn,promMagLn,promPhaseLn,
 
-ani=FuncAnimation(fig,update,N,init,interval=1 ,blit=False,repeat=True)
+ani=FuncAnimation(fig,update,N,init,interval=1 ,blit=True,repeat=True)
 plt.get_current_fig_manager().window.showMaximized()
 plt.show()
