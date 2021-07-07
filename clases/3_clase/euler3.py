@@ -32,7 +32,7 @@ signalData=[]
 def signal(f,n):
     return np.cos(2*np.pi*f*n*1/fs)
 #--------------------------------------
-tData=np.arange(0,N/fs,1/fs)
+tData=np.arange(0,N,1)/fs
 
 def init():
     global circleData,signalData,radioLn,circleFrec

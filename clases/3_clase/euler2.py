@@ -30,7 +30,7 @@ signalData=[]
 def signal(f,n):
     return np.cos(2*np.pi*f*n*1/fs)
 #--------------------------------------
-tData=np.arange(0,N/fs,1/fs)
+tData=np.arange(0,N,1)/fs
 
 def init():
     global circleData,signalData
@@ -52,6 +52,6 @@ def update(n):
     circleLg=circleAxe.legend()
     return circleLn,circleLg,signalLn,radioLn,
 
-ani=FuncAnimation(fig,update,N,init,interval=500 ,blit=False,repeat=True)
+ani=FuncAnimation(fig,update,N,init,interval=50 ,blit=False,repeat=True)
 plt.get_current_fig_manager().window.showMaximized()
 plt.show()
