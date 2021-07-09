@@ -5,7 +5,7 @@
 #define BITS 10						// cantidad de bits usado para cuantizar
 uint32_t tick	= 0   ;
 uint16_t tone	= 100 ;
-uint16_t B		= 2000;
+uint16_t B		= 2500;
 uint16_t sweept = 5;
 
 struct header_struct {
@@ -18,7 +18,7 @@ struct header_struct {
    char		pos[4];
 } __attribute__ ((packed));
 
-struct header_struct header={"*header*",0,1024,10000,0,0,"end*"};
+struct header_struct header={"*header*",0,128,10000,0,0,"end*"};
 
 void trigger(int16_t threshold)
 {
@@ -36,18 +36,23 @@ int main ( void ) {
    q15_t fftOut[ header.N *2   ];	// salida de la fft
    q15_t fftMag[ header.N /2+1 ]; // magnitud de la FFT
    int16_t adc [ header.N	   ];
-   boardConfig (				  );
-   uartConfig  ( UART_USB, 460800 );
-   adcConfig   ( ADC_ENABLE		  );
-   //dacConfig   ( DAC_ENABLE		  );
+
+   boardConfig		 (							);
+   uartConfig		 ( UART_USB ,460800			);
+   adcConfig		 ( ADC_ENABLE				);
+   //dacConfig		 ( DAC_ENABLE				);
    cyclesCounterInit ( EDU_CIAA_NXP_CLOCK_SPEED );
+
    while(1) {
 	  cyclesCounterReset();
 
-	  adc[sample]	= (((int16_t )adcRead(CH1)-512)>>(10-BITS))<<(6+10-BITS);// PISA el sample que se acaba de mandar con una nueva muestra
-	  fftIn[sample] = adc[sample];													 // copia del adc porque la fft corrompe el arreglo de entrada
-	  float t=((tick%(sweept*header.fs))/(float)header.fs);
-	  tick++;
+	  uartWriteByteArray ( UART_USB ,(uint8_t* )&adc[sample]		,sizeof(adc[0]) );	 // envia el sample ANTERIOR
+	  uartWriteByteArray ( UART_USB ,(uint8_t* )&fftOut[sample*2]	,sizeof(fftOut[0])); // envia la fft del sample ANTERIO
+	  uartWriteByteArray ( UART_USB ,(uint8_t* )&fftOut[sample*2+1] ,sizeof(fftOut[0])); // envia la fft del sample ANTERIO
+	  adc[sample]	= (((int16_t )adcRead(CH1)-512)>>(10-BITS))<<(6+10-BITS);			 // PISA el sample que se acaba de mandar con una nueva muestra
+	  fftIn[sample] = adc[sample];														 // copia del adc porque la fft corrompe el arreglo de entrada
+	  //float t=((tick%(sweept*header.fs))/(float)header.fs);
+	  //tick++;
 	  //dacWrite( DAC, 512*arm_sin_f32 (t*B/2*(t/sweept)*2*PI)+512); // sweept
 	  //dacWrite( DAC, 512*arm_sin_f32 (t*tone*2*PI)+512);		 // tono
 	  if ( ++sample==header.N ) {
@@ -57,15 +62,15 @@ int main ( void ) {
 		 arm_rfft_q15			   ( &S		,fftIn		  ,fftOut							  ); // por fin.. ejecuta la rfft REAL fft
 		 arm_cmplx_mag_squared_q15 ( fftOut ,fftMag		  ,header.N/2+1						  );
 		 arm_max_q15			   ( fftMag ,header.N/2+1 ,&header.maxValue ,&header.maxIndex );
-//		 trigger(2);
+		 //		 trigger(2);
 		 header.id++;
 		 uartWriteByteArray ( UART_USB ,(uint8_t*)&header ,sizeof(struct header_struct ));
 
-		 for(int i=0;i<header.N;i++) {
-			uartWriteByteArray ( UART_USB ,(uint8_t* )&adc[i]	,sizeof(adc[0]) );	 // envia el sample ANTERIOR
-			uartWriteByteArray ( UART_USB ,(uint8_t* )&fftOut[i*2] ,sizeof(fftOut[0])); // envia la fft del sample ANTERIO
-			uartWriteByteArray ( UART_USB ,(uint8_t* )&fftOut[i*2+1] ,sizeof(fftOut[0])); // envia la fft del sample ANTERIO
-		 }
+		 //		 for(int i=0;i<header.N;i++) {
+		 //			uartWriteByteArray ( UART_USB ,(uint8_t* )&adc[i]	,sizeof(adc[0]) );	 // envia el sample ANTERIOR
+		 //			uartWriteByteArray ( UART_USB ,(uint8_t* )&fftOut[i*2] ,sizeof(fftOut[0])); // envia la fft del sample ANTERIO
+		 //			uartWriteByteArray ( UART_USB ,(uint8_t* )&fftOut[i*2+1] ,sizeof(fftOut[0])); // envia la fft del sample ANTERIO
+		 //		 }
 		 adcRead(CH1); //why?? hay algun efecto minimo en el 1er sample.. puede ser por el blinkeo de los leds o algo que me corre 10 puntos el primer sample. Con esto se resuelve.. habria que investigar el problema en detalle
 	  }
 	  gpioToggle ( LED1 );											 // este led blinkea a fs/2

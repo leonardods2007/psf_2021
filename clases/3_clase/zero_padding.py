@@ -1,56 +1,76 @@
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.animation import FuncAnimation
-from buttons import buttonOnFigure
 #--------------------------------------
 fig        = plt.figure()
-fs         = 2000
-N          = 2000
+fs         = 10.0
+N          = 10
+Z          = N+30
 #--------------------------------------
 circleAxe  = fig.add_subplot(2,2,1)
-circleLn,massLn  = plt.plot([],[],'r-',[],[],'bo')
+circleLn, = plt.plot([] ,[] ,'ro-' ,linewidth = 2)
+massLn,   = plt.plot([] ,[] ,'bX' ,linewidth = 1 ,alpha = 1)
+
 circleAxe.grid(True)
 circleAxe.set_xlim(-1,1)
 circleAxe.set_ylim(-1,1)
-circleFrec = np.arange(-fs/2,fs/2,fs/N)
+
+tSequence = np.arange(0,Z,1) #arranco con numeros enteros para evitar errores de float
+circleFrec = (tSequence-Z//2)*fs/Z
 circleLn.set_label(circleFrec[0])
 circleLg   = circleAxe.legend()
 circleData = []
 mass       = 0
-frecIter   = 0
+frecIter   = -1
 def circle(f,n):
     return np.exp(-1j*2*np.pi*f*n*1/fs)
 #--------------------------------------
 signalAxe  = fig.add_subplot(2,2,2)
 signalLn,  = plt.plot([],[],'b-o')
 signalAxe.grid(True)
-signalAxe.set_xlim(0,N/fs)
-signalAxe.set_ylim(-1,1)
-signalFrec = 440
+signalAxe.set_xlim(0,Z/fs)
+signalAxe.set_ylim(-2,2)
+signalFrec = 1.2
 signalData=[]
 def signal(f,n):
-    #return 0.5*np.sin(2*np.pi*f*n*1/fs)+0.5*np.sin(2*np.pi*(f+2)*n*1/fs)
-    if n<500:
-        return 0.5*np.sin(2*np.pi*f*n*1/fs)+0.5*np.sin(2*np.pi*(f+2)*n*1/fs)
-    #    return 0.5*np.sin(2*np.pi*f*n*1/fs)+0.5*np.sin(2*np.pi*f*1.5*n*1/fs)
-    return 0
+    if n<N: 
+        return np.cos(2*np.pi*f*n*1/fs)
+    else:
+        return 0
+#    if n<50: 
+#     return 0.5*np.sin(2*np.pi*f*n*1/fs)+0.5*np.sin(2*np.pi*f*1.5*n*1/fs)
+#    return 0
 #--------------------------------------
 promAxe  = fig.add_subplot(2,2,3)
-promRLn,promILn,promMagLn,promPhaseLn  = plt.plot([],[],'b-o',[],[],'r-o',[],[],'k-',[],[],'y-')
+promRLn,promILn,promMagLn,promPhaseLn  = plt.plot([],[],'b-o',[],[],'r-o',[],[],'k-o',[],[],'y-')
 promAxe.grid(True)
 promAxe.set_xlim(-fs/2,fs/2)
 promAxe.set_ylim(-1,1)
-promData=np.zeros(N,dtype=complex)
+promData=np.zeros(Z,dtype=complex)
 #--------------------------------------
-tData=np.arange(0,N/fs,1/fs)
+prom3DAxe = fig.add_subplot(2,2,4,projection = "3d")
+def plot3DLn(x,y,z):
+    prom3DAxe.clear()
+    prom3DLn = prom3DAxe.plot3D(x,y,z,'g-o',linewidth=2)
+    prom3DAxe.set_xlim(-fs/2,fs/2)
+    prom3DAxe.set_ylim(-1,1)
+    prom3DAxe.set_zlim(-1,1)
+
+#--------------------------------------
+tData=tSequence/fs
 
 def init():
+    global frecIter
+    frecIter+=1
+    if frecIter >= (Z-1):
+        ani.repeat=False
     return circleLn,circleLg,signalLn,massLn,promRLn,promILn
+
 def update(nn):
     global circleData,signalData,promData,frecIter,circleFrec,circleLg
     circleData = []
     signalData = []
-    for n in range(N):
+    for n in range(Z):
         circleData.append(circle(circleFrec[frecIter],n)*signal(signalFrec,n))
         mass=np.average(circleData)
         signalData.append(signal(signalFrec,n))
@@ -67,14 +87,10 @@ def update(nn):
     circleLn.set_label(circleFrec[frecIter])
     circleLg=circleAxe.legend()
 
-    if frecIter == N-1:
-        ani.repeat=False
-    else:
-        frecIter+=1
+    plot3DLn(circleFrec[:frecIter+1],np.real(promData[:frecIter+1]),np.imag(promData[:frecIter+1]))
+
     return circleLn,circleLg,signalLn,massLn,promRLn,promILn,promMagLn,promPhaseLn,
 
-
-ani=FuncAnimation(fig,update,N,init,interval=100 ,blit=True,repeat=True)
+ani=FuncAnimation(fig,update,1,init,interval=1 ,blit=False,repeat=True)
 plt.get_current_fig_manager().window.showMaximized()
-b=buttonOnFigure(fig,ani)
 plt.show()

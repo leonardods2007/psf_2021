@@ -18,13 +18,14 @@ adcAxe.grid              ( True                             )
 adcAxe.set_ylim          ( -2 ,2                            )
 
 
-fftAxe = fig.add_subplot ( 2,1,2                  )
-fftLn,     = plt.plot        ( [],[],'b-',linewidth = 5,alpha=1 )
-ciaaFftLn, = plt.plot        ( [],[],'r-',linewidth = 10,alpha=0.4 )
-maxValueLn, = plt.plot   ( [],[],'y-',linewidth=2,alpha=0.3 )
-maxIndexLn, = plt.plot   ( [],[],'yo',linewidth=6,alpha=0.8 )
-fftAxe.grid              ( True                   )
-fftAxe.set_ylim          ( 0 ,0.25                )
+fftAxe      = fig.add_subplot ( 2,1,2                                 )
+fftLn,      = plt.plot        ( [],[],'b-',linewidth = 5,alpha  = 1   )
+ciaaFftLn,  = plt.plot        ( [],[],'r-',linewidth = 10,alpha = 0.4 )
+ciaaHistoLn,= plt.step        ( [],[],'g-',linewidth = 10,alpha = 0.8 )
+maxValueLn, = plt.plot        ( [],[],'y-',linewidth = 2,alpha  = 0.3 )
+maxIndexLn, = plt.plot        ( [],[],'y-o',linewidth = 6,alpha = 0.8 )
+fftAxe.grid                   ( True                                  )
+fftAxe.set_ylim               ( 0 ,0.25                               )
 
 def findHeader(f,h):
     data=bytearray(b'12345678')
@@ -62,6 +63,7 @@ def readSamples(adc,fft,N,trigger=False,th=0):
     i=0
     for t in range(N):
         sample = (readInt4File(streamFile,sign = True)*1.65)/(2**6*512)
+        #part real plus imag
         fftBin = (readInt4File(streamFile,sign = True)*1.65)/(2**6*512) +\
                  1j*(readInt4File(streamFile,sign = True)*1.65)/(2**6*512)
         state,nextI= {
@@ -77,24 +79,33 @@ def update(t):
     global header
     flushStream ( streamFile,header )
     id,N,fs,maxIndex,maxValue=findHeader ( streamFile,header )
-    adc   = np.zeros(N)
-    ciaaFft   = np.zeros(N).astype(complex)
-    time  = np.arange(0,N/fs,1/fs)
+    adc     = np.zeros(N)
+    ciaaFft = np.zeros(N).astype(complex)
+    time    = np.arange(0,N/fs,1/fs)
     readSamples(adc,ciaaFft,N,False,0)
 
-    adcAxe.set_xlim     ( 0    ,N/fs              )
-    adcLn.set_data      ( time ,adc               )
+    adcAxe.set_xlim ( 0    ,N/fs )
+    adcLn.set_data  ( time ,adc  )
 
     fft=np.abs ( 1/N*np.fft.fft(adc ))**2
     fftAxe.set_ylim ( 0 ,np.max(fft)+0.05)
     fftAxe.set_xlim ( 0 ,fs/2 )
-    fftLn.set_data     ( (fs/N )*fs*time ,fft)
-    ciaaFftLn.set_data ( (fs/N )*fs*time ,np.abs(ciaaFft)**2)
+#    fftLn.set_data  ( (fs/N )*fs*time ,fft)
+
+    H=4
+    hist=np.zeros(N)
+    ciaaP=np.abs(ciaaFft)**2
+    for i in range(len(ciaaP)-H):
+        hist[i]=np.max(ciaaP[(i//H)*H:(i//H)*H+H+1])
+
+#    ciaaFftLn.set_data ( (fs/N )*fs*time ,ciaaP)
+    ciaaHistoLn.set_data ( (fs/N )*fs*time ,hist)
+
 
     maxValueLn.set_data ( time,maxValue           )
+    maxIndexLn.set_data ( [(fs/N )*fs*time[maxIndex],(fs/N )*fs*time[maxIndex]],[0,maxValue] )
 
-    maxIndexLn.set_data ( (fs/N )*fs*time[maxIndex],maxValue )
-    return adcLn, fftLn,  maxValueLn,  maxIndexLn
+    return adcLn, fftLn,  maxValueLn,  maxIndexLn, ciaaFftLn, ciaaHistoLn
 
 #seleccionar si usar la biblioteca pyserial o leer desde un archivo log.bin
 if(STREAM_FILE[1]=="serial"):
@@ -102,7 +113,7 @@ if(STREAM_FILE[1]=="serial"):
 else:
     streamFile=open(STREAM_FILE[0],"rb",0)
 
-ani=FuncAnimation(fig,update,1000,init_func=None,blit=False,interval=1,repeat=True)
+ani=FuncAnimation(fig,update,10000,init_func=None,blit=True,interval=1,repeat=True)
 plt.draw()
 plt.get_current_fig_manager().window.showMaximized() #para QT5
 plt.show()

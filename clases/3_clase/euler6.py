@@ -33,7 +33,7 @@ signalFrec = 1
 signalData=[]
 
 def signal(f,n):
-    return np.cos(2*np.pi*f*n*1/fs)+0.2j*np.sin(4*np.pi*f*n*1/fs)
+    return np.cos(2*np.pi*f*n*1/fs)#+0.2j*np.sin(4*np.pi*f*n*1/fs)
 #--------------------------------------
 promAxe  = fig.add_subplot(2,2,3)
 promRLn,promILn,  = plt.plot([],[],'g-o',[],[],'y-o')
