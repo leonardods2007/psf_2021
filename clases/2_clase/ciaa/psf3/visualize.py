@@ -67,12 +67,13 @@ def readSamples(adc,N,trigger=False,th=0):
     i=0
     for t in range(N):
         sample = (readInt4File(streamFile,sign = True)*1.65)/(2**6*512)
-        state,i= {
+        state,nextI= {
                 "waitLow" : lambda sample,i: ("waitHigh",0) if sample<th else ("waitLow" ,0),
                 "waitHigh": lambda sample,i: ("sampling",0) if sample>th else ("waitHigh",0),
                 "sampling": lambda sample,i: ("sampling",i+1)
                 }[state](sample,i)
         adc[i]=sample
+        i=nextI
 
 def update(t):
     global header

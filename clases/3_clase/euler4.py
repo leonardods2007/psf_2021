@@ -3,8 +3,8 @@ import matplotlib.pyplot as plt
 from matplotlib.animation import FuncAnimation
 #--------------------------------------
 fig        = plt.figure()
-fs         = 20.0
-N          = 20
+fs         = 7.0
+N          = 7
 #--------------------------------------
 circleAxe  = fig.add_subplot(2,2,1)
 circleLn, = plt.plot([] ,[] ,'ro-' ,linewidth = 2)
@@ -15,7 +15,7 @@ circleAxe.grid(True)
 circleAxe.set_xlim(-1,1)
 circleAxe.set_ylim(-1,1)
 tSequence = np.arange(0,N,1) #arranco con numeros enteros para evitar errores de float
-circleFrec = (tSequence-N/2)*fs/N
+circleFrec = (tSequence-N//2)*fs/N
 
 circleLn.set_label(circleFrec[0])
 circleLg   = circleAxe.legend()
@@ -30,7 +30,7 @@ signalLn,  = plt.plot([],[],'b-o')
 signalAxe.grid(True)
 signalAxe.set_xlim(0,N/fs)
 signalAxe.set_ylim(-1,1)
-signalFrec = 2
+signalFrec = 1
 signalData=[]
 def signal(f,n):
     return np.cos(2*np.pi*f*n*1/fs)

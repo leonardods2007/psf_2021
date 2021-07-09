@@ -15,7 +15,7 @@ circleAxe.set_xlim(-1,1)
 circleAxe.set_ylim(-1,1)
 
 tSequence = np.arange(0,N,1) #arranco con numeros enteros para evitar errores de float
-circleFrec = (tSequence-N/2)*fs/N
+circleFrec = (tSequence-N//2)*fs/N
 circleLn.set_label(circleFrec[0])
 circleLg   = circleAxe.legend()
 circleData = []
@@ -26,6 +26,8 @@ def circle(f,n):
 #--------------------------------------
 signalAxe  = fig.add_subplot(2,2,2)
 signalLn,  = plt.plot([],[],'b-o')
+signalRLn,  = plt.plot([],[],'b-o',linewidth=3,alpha=0.6)
+signalILn,  = plt.plot([],[],'r-o',linewidth=3,alpha=0.6)
 signalAxe.grid(True)
 signalAxe.set_xlim(0,N/fs)
 signalAxe.set_ylim(-2,2)
@@ -60,7 +62,7 @@ def init():
     frecIter+=1
     if frecIter >= (N-1):
         ani.repeat=False
-    return circleLn,circleLg,signalLn,massLn,promRLn,promILn
+    return circleLn,circleLg,signalRLn,signalILn,massLn,promRLn,promILn
 
 def update(nn):
     global circleData,signalData,promData,frecIter,circleFrec,circleLg
@@ -75,7 +77,8 @@ def update(nn):
                     np.imag(mass))
     circleLn.set_data(np.real(circleData),
                       np.imag(circleData))
-    signalLn.set_data(tData[:n+1],signalData)
+    signalRLn.set_data(tData[:n+1],np.real(signalData))
+    signalILn.set_data(tData[:n+1],np.imag(signalData))
 #    promRLn.set_data(circleFrec[:frecIter+1],np.real(promData[:frecIter+1]))
 #    promILn.set_data(circleFrec[:frecIter+1],np.imag(promData[:frecIter+1]))
     promMagLn.set_data(circleFrec[:frecIter+1],np.abs(promData[:frecIter+1])**2)
@@ -85,7 +88,7 @@ def update(nn):
 
     plot3DLn(circleFrec[:frecIter+1],np.real(promData[:frecIter+1]),np.imag(promData[:frecIter+1]))
 
-    return circleLn,circleLg,signalLn,massLn,promRLn,promILn,promMagLn,promPhaseLn,
+    return circleLn,circleLg,signalRLn,signalILn,massLn,promRLn,promILn,promMagLn,promPhaseLn,
 
 ani=FuncAnimation(fig,update,1,init,interval=1 ,blit=False,repeat=True)
 plt.get_current_fig_manager().window.showMaximized()

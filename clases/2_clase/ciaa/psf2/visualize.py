@@ -6,104 +6,90 @@ import os
 import io
 import serial
 
-SERIAL_PORT="/dev/ttyUSB2"
-header = { "mark": b"*header*", "id": 0, "N": 128, "fs": 10000 }
-fig    = plt.figure      ( 1          )
+STREAM_FILE=("/dev/ttyUSB1","serial")
+#STREAM_FILE=("log.bin","file")
 
-adcAxe = fig.add_subplot ( 2,1,1       )
-adcLn, = plt.plot        ( [],[],'r-',linewidth=4  )
-adcAxe.grid              ( True        )
-adcAxe.set_ylim          ( -1.65 ,1.65 )
+header = { "pre": b"*header*", "id": 0, "N": 128, "fs": 10000, "pos":b"end*" }
+fig    = plt.figure ( 1 )
 
-fftAxe = fig.add_subplot ( 2,1,2      )
+adcAxe = fig.add_subplot ( 2,1,1                  )
+adcLn, = plt.plot        ( [],[],'r-',linewidth=4 )
+adcAxe.grid              ( True                   )
+adcAxe.set_ylim          ( -1.65 ,1.65            )
+
+fftAxe = fig.add_subplot ( 2,1,2                  )
 fftLn, = plt.plot        ( [],[],'b-',linewidth=4 )
-fftAxe.grid              ( True       )
-fftAxe.set_ylim          ( 0 ,0.25 )
+fftAxe.grid              ( True                   )
+fftAxe.set_ylim          ( 0 ,0.25                )
 
 def findHeader(f,h):
-    index = 0
-    sync  = False
-    while sync==False:
-        data=b''
-        while len(data) <1:
-            data = f.read(1)
-        logFile.write(data)
-        if data[0]==h["mark"][index]:
-            index+=1
-            if index>=len(h["mark"]):
-                sync=True
-        else:
-            index=0
+    data=bytearray(b'12345678')
+    while data!=h["pre"]:
+        data+=f.read(1)
+        if len(data)>len(h["pre"]):
+            del data[0]
     h["id"] = readInt4File(f,4)
     h["N" ] = readInt4File(f)
     h["fs"] = readInt4File(f)
+
+    data=bytearray(b'1234')
+    while data!=h["pos"]:
+        data+=f.read(1)
+        if len(data)>len(h["pos"]):
+            del data[0]
     print(h)
     return h["id"],h["N"],h["fs"]
 
-
 def readInt4File(f,size=2,sign=False):
-    raw=b''
-    while(len(raw)<size):
-        data=f.read(1)
-        raw+=data
-        logFile.write(data)
+    raw=f.read(1)
+    while( len(raw) < size):
+        raw+=f.read(1)
     return (int.from_bytes(raw,"little",signed=sign))
 
-def findThresh(f,th,h):
-    state=1
-    sample=0
-    for chunk in range(h["N"]):
-        sample=readInt4File(f,sign=True)
-        if(state==1):
-            if(sample<th):
-                state=2
-        else:
-            if(state==2):
-                if(sample>=th):
-                    return chunk+1,sample
-    return N,sample
-                
-def flushStram(f,h):
-    if(f.name): #pregunto si estoy usando la bibioteca pyserial o un file
+def flushStream(f,h):
+    if(STREAM_FILE[1]=="serial"): #pregunto si estoy usando la bibioteca pyserial o un file
         f.flushInput()
     else:
         f.seek ( 2*h["N"],io.SEEK_END)
 
+def readSamples(adc,N,trigger=False,th=0):
+    state="waitLow" if trigger else "sampling"
+    i=0
+    for t in range(N):
+        sample = readInt4File(streamFile,sign = True)/512*1.65
+        state,nextI= {
+                "waitLow" : lambda sample,i: ("waitHigh",0) if sample<th else ("waitLow" ,0),
+                "waitHigh": lambda sample,i: ("sampling",0) if sample>th else ("waitHigh",0),
+                "sampling": lambda sample,i: ("sampling",i+1)
+                }[state](sample,i)
+        adc[i]=sample
+        i=nextI
+
 def update(t):
     global header
-    flushStram ( streamFile,header )
+    #flushStream ( streamFile,header )
     id,N,fs=findHeader ( streamFile,header )
-    adc   = np.ndarray(N)
-    time  = np.ndarray(N)
-    index = 0
-    t     = 0
-    #index,sample=findThresh(streamFile,0,header)
-    for chunk in range(N-index):
-        sample   = readInt4File(streamFile,sign = True)
-        adc[t]   = sample/512*1.65
-        time[t]  = t/fs
-        t       += 1
+    adc   = np.zeros(N)
+    time  = np.arange(0,N/fs,1/fs)
+    readSamples(adc,N,False,-1.3)
 
     adcAxe.set_xlim ( 0    ,N/fs )
     adcLn.set_data  ( time ,adc  )
 
     fft=np.abs ( 1/N*np.fft.fft(adc ))**2
     fftAxe.set_ylim ( 0 ,np.max(fft)+0.05)
-    fftAxe.set_xlim ( 0                ,fs/8 )
+    fftAxe.set_xlim ( 0 ,fs/2 )
     fftLn.set_data ( (fs/N )*fs*time ,fft)
     return adcLn, fftLn
 
 #seleccionar si usar la biblioteca pyserial o leer desde un archivo log.bin
-#streamFile=open("log.bin","rb",0)
-streamFile = serial.Serial(port=SERIAL_PORT,baudrate=460800,timeout=None)
+if(STREAM_FILE[1]=="serial"):
+    streamFile = serial.Serial(port=STREAM_FILE[0],baudrate=460800,timeout=None)
+else:
+    streamFile=open(STREAM_FILE[0],"rb",0)
 
-logFile=open("log.bin","wb",0)
-
-ani=FuncAnimation(fig,update,1000,init_func=None,blit=False,interval=1,repeat=True)
+ani=FuncAnimation(fig,update,1000,init_func=None,blit=True,interval=1,repeat=True)
 plt.draw()
-#mng=plt.get_current_fig_manager()
-#mng.resize(mng.window.maxsize())
 plt.get_current_fig_manager().window.showMaximized() #para QT5
 plt.show()
 streamFile.close()
-logFile.close()
